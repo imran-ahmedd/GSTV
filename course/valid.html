@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="theme-color" content="#0f172a">
+    <title>AegisVault - Private Secure Media Vault</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        vault: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            800: '#166534',
+                            900: '#14532d',
+                            darkBg: '#090d16',
+                            darkCard: '#111827',
+                            darkBorder: '#1f2937'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.3);
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.5);
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .light .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+        }
+        /* Mobile safe areas */
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+        .pt-safe { padding-top: env(safe-area-inset-top, 1rem); }
+    </style>
+</head>
+<body class="bg-vault-darkBg text-gray-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white transition-colors duration-200">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="flex flex-col min-h-screen relative overflow-x-hidden">
+        
+        <!-- AUTH SCREEN (Shown if not logged in) -->
+        <div id="authScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950 bg-opacity-95 backdrop-blur-md">
+            <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 relative overflow-hidden">
+                <!-- Decorative vault aura -->
+                <div class="absolute -top-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white mb-4 shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-shield-halved text-3xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold tracking-tight text-white">AEGIS<span class="text-emerald-500">VAULT</span></h1>
+                    <p class="text-xs text-gray-400 mt-1 uppercase tracking-widest font-mono">Zero-Trust Encrypted Storage</p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-800 mb-6">
+                    <button id="tabLoginBtn" onclick="switchAuthTab('login')" class="flex-1 pb-3 text-sm font-medium text-emerald-400 border-b-2 border-emerald-500 transition-colors">Sign In</button>
+                    <button id="tabRegisterBtn" onclick="switchAuthTab('register')" class="flex-1 pb-3 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-300 transition-colors">Request Access</button>
+                </div>
+
+                <!-- Login Form -->
+                <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Email Address</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-gray-500 text-sm"></i>
+                            <input type="email" id="loginEmail" required value="admin@aegisvault.internal" class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-gray-600" placeholder="user@domain.com">
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider">Master Password</label>
+                            <a href="#" onclick="showToast('Password reset link dispatched to admin authorization terminal.', 'info')" class="text-xs text-emerald-400 hover:underline">Forgot?</a>
+                        </div>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-gray-500 text-sm"></i>
+                            <input type="password" id="loginPassword" required value="vault123" class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder-gray-600" placeholder="••••••••••••">
+                        </div>
+                    </div>
+                    <div class="flex items-center text-xs text-gray-400">
+                        <input type="checkbox" id="rememberMe" class="rounded bg-slate-950 border-slate-800 text-emerald-500 focus:ring-emerald-500 mr-2">
+                        <label for="rememberMe">Maintain Authenticated Token (Session)</label>
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-all shadow-lg shadow-emerald-900/30 active:scale-[0.99]">
+                        Unlock Private Vault
+                    </button>
+                    <div class="text-center pt-2">
+                        <span class="text-xs text-gray-500">Demo User: <code class="text-emerald-400">admin@aegisvault.internal</code> / <code class="text-emerald-400">vault123</code></span>
+                    </div>
+                </form>
+
+                <!-- Register Form -->
+                <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Full Identity Name</label>
+                        <input type="text" id="regName" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="Security Officer Name">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Email Address</label>
+                        <input type="email" id="regEmail" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="user@domain.com">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">Create Password</label>
+                        <input type="password" id="regPassword" required minlength="8" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" placeholder="At least 8 characters">
+                    </div>
+                    <div class="p-3 bg-amber-950/30 border border-amber-800/40 rounded-lg text-xs text-amber-300/90 flex items-start space-x-2">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5 text-amber-400"></i>
+                        <span>New accounts require explicit Allowlist approval by an existing Vault Admin before data access is granted.</span>
+                    </div>
+                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-semibold py-2.5 px-4 rounded-lg text-sm transition-all border border-slate-700">
+                        Submit Security Request
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- MAIN LAYOUT (When Authenticated) -->
+        <div id="mainLayout" class="flex-1 flex flex-col md:flex-row hidden min-h-screen">
+
+            <!-- SIDEBAR (Desktop) -->
+            <aside class="hidden md:flex flex-col w-64 border-r border-slate-800 bg-slate-950/80 backdrop-blur-md p-4 sticky top-0 h-screen justify-between z-30">
+                <div class="space-y-6">
+                    <!-- Brand -->
+                    <div class="flex items-center space-x-3 px-2 py-1">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                            <i class="fa-solid fa-shield-halved text-xl"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-base tracking-wide text-white block leading-tight">AEGIS<span class="text-emerald-500">VAULT</span></span>
+                            <span class="text-[10px] text-emerald-400 font-mono tracking-wider flex items-center">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block mr-1.5 animate-pulse"></span>ENCRYPTED
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Quick Upload Button -->
+                    <button onclick="openUploadModal()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center space-x-2 shadow-lg shadow-emerald-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Secure Upload</span>
+                    </button>
+
+                    <!-- Navigation -->
+                    <nav class="space-y-1">
+                        <a href="#" onclick="navigateTo('dashboard')" id="nav-dashboard" class="nav-item active flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 transition-all">
+                            <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="#" onclick="navigateTo('videos')" id="nav-videos" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-slate-900 transition-all">
+                            <i class="fa-solid fa-film w-5 text-center"></i>
+                            <span>Video Vault</span>
+                        </a>
+                        <a href="#" onclick="navigateTo('documents')" id="nav-documents" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-slate-900 transition-all">
+                            <i class="fa-solid fa-file-contract w-5 text-center"></i>
+                            <span>Documents</span>
+                        </a>
+                        <a href="#" onclick="navigateTo('images')" id="nav-images" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-slate-900 transition-all">
+                            <i class="fa-solid fa-images w-5 text-center"></i>
+                            <span>Image Gallery</span>
+                        </a>
+                        <a href="#" onclick="navigateTo('folders')" id="nav-folders" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-slate-900 transition-all">
+                            <i class="fa-solid fa-folder-tree w-5 text-center"></i>
+                            <span>Directory Tree</span>
+                        </a>
+                        <a href="#" onclick="navigateTo('trash')" id="nav-trash" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-slate-900 transition-all">
+                            <i class="fa-solid fa-trash-can w-5 text-center"></i>
+                            <span>Recycle Bin</span>
+                        </a>
+                        <a href="#" onclick="navigateTo('logs')" id="nav-logs" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-slate-900 transition-all">
+                            <i class="fa-solid fa-shield-virus w-5 text-center"></i>
+                            <span>Audit & Security</span>
+                        </a>
+                        <a href="#" onclick="navigateTo('admin')" id="nav-admin" class="nav-item flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-slate-900 transition-all">
+                            <i class="fa-solid fa-user-shield w-5 text-center"></i>
+                            <span>Admin Center</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!-- Storage Mini Widget -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-400">Vault Capacity</span>
+                        <span id="sidebarStorageText" class="text-emerald-400 font-mono">0 GB / 200 GB</span>
+                    </div>
+                    <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800/80">
+                        <div id="sidebarStorageBar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full w-0 transition-all duration-500"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500 text-center">End-to-End Encrypted Bucket</p>
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT WRAPPER -->
+            <div class="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+                
+                <!-- TOP HEADER -->
+                <header class="h-16 border-b border-slate-800 bg-slate-950/60 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20">
+                    <!-- Left search bar -->
+                    <div class="flex items-center space-x-3 flex-1 max-w-md">
+                        <div class="relative w-full">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-500 text-sm"></i>
+                            <input type="text" id="globalSearchInput" onkeyup="handleGlobalSearch(event)" placeholder="Search files, folders, extensions, tags..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-1.5 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all">
+                        </div>
+                    </div>
+
+                    <!-- Right actions -->
+                    <div class="flex items-center space-x-3">
+                        <!-- Theme Toggle -->
+                        <button onclick="toggleTheme()" class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 text-gray-400 hover:text-gray-200 flex items-center justify-center transition-colors">
+                            <i id="themeIcon" class="fa-solid fa-moon"></i>
+                        </button>
+
+                        <!-- Upload Quick trigger (Mobile) -->
+                        <button onclick="openUploadModal()" class="md:hidden w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-900/30">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+
+                        <!-- User Profile Dropdown -->
+                        <div class="relative">
+                            <button onclick="toggleUserMenu()" class="flex items-center space-x-2 p-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all">
+                                <div class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs uppercase" id="userAvatarText">
+                                    A
+                                </div>
+                                <span id="userNameHeader" class="text-xs font-medium text-gray-300 hidden sm:inline-block max-w-[100px] truncate">Admin</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-500 pr-1"></i>
+                            </button>
+
+                            <!-- Profile Menu Modal -->
+                            <div id="userMenuDropdown" class="hidden absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-2 z-50">
+                                <div class="px-4 py-2 border-b border-slate-800">
+                                    <p class="text-xs font-semibold text-white" id="userMenuName">Administrator</p>
+                                    <p class="text-[11px] text-gray-400 truncate" id="userMenuEmail">admin@aegisvault.internal</p>
+                                    <span class="inline-block mt-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] rounded font-mono border border-emerald-500/20">SYSTEM OWNER</span>
+                                </div>
+                                <a href="#" onclick="openSessionModal(); toggleUserMenu();" class="flex items-center px-4 py-2 text-xs text-gray-300 hover:bg-slate-800 transition-colors">
+                                    <i class="fa-solid fa-key w-5 text-gray-500"></i> Active Sessions
+                                </a>
+                                <a href="#" onclick="openSettingsModal(); toggleUserMenu();" class="flex items-center px-4 py-2 text-xs text-gray-300 hover:bg-slate-800 transition-colors">
+                                    <i class="fa-solid fa-gear w-5 text-gray-500"></i> Vault Settings
+                                </a>
+                                <div class="border-t border-slate-800 my-1"></div>
+                                <button onclick="handleLogout()" class="w-full text-left flex items-center px-4 py-2 text-xs text-rose-400 hover:bg-slate-800 transition-colors">
+                                    <i class="fa-solid fa-right-from-bracket w-5"></i> Terminate Session
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- DYNAMIC CONTENT VIEW CONTAINER -->
+                <main id="contentContainer" class="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto space-y-6">
+                    <!-- Views will be injected here dynamically -->
+                </main>
+            </div>
+
+            <!-- MOBILE NAVIGATION BAR (Bottom Fixed) -->
+            <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-950/90 backdrop-blur-lg border-t border-slate-800 flex items-center justify-around z-40 px-2 pb-safe">
+                <button onclick="navigateTo('dashboard')" id="mob-dashboard" class="flex flex-col items-center justify-center w-12 h-12 text-emerald-400">
+                    <i class="fa-solid fa-chart-pie text-lg"></i>
+                    <span class="text-[10px] mt-0.5">Dash</span>
+                </button>
+                <button onclick="navigateTo('videos')" id="mob-videos" class="flex flex-col items-center justify-center w-12 h-12 text-gray-400">
+                    <i class="fa-solid fa-film text-lg"></i>
+                    <span class="text-[10px] mt-0.5">Videos</span>
+                </button>
+                <button onclick="navigateTo('documents')" id="mob-documents" class="flex flex-col items-center justify-center w-12 h-12 text-gray-400">
+                    <i class="fa-solid fa-file-contract text-lg"></i>
+                    <span class="text-[10px] mt-0.5">Docs</span>
+                </button>
+                <button onclick="navigateTo('images')" id="mob-images" class="flex flex-col items-center justify-center w-12 h-12 text-gray-400">
+                    <i class="fa-solid fa-images text-lg"></i>
+                    <span class="text-[10px] mt-0.5">Photos</span>
+                </button>
+                <button onclick="navigateTo('folders')" id="mob-folders" class="flex flex-col items-center justify-center w-12 h-12 text-gray-400">
+                    <i class="fa-solid fa-folder-tree text-lg"></i>
+                    <span class="text-[10px] mt-0.5">Folders</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- MODALS CONTAINER -->
+
+        <!-- 1. UPLOAD MODAL -->
+        <div id="uploadModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+            <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                    <h3 class="font-semibold text-white text-base flex items-center space-x-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-emerald-500"></i>
+                        <span>Secure Direct Storage Upload</span>
+                    </h3>
+                    <button onclick="closeUploadModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                
+                <div class="p-6 space-y-4">
+                    <!-- Dropzone -->
+                    <div id="dropZone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)" onclick="document.getElementById('fileInput').click()" class="border-2 border-dashed border-slate-700 hover:border-emerald-500 bg-slate-950/50 hover:bg-slate-950 rounded-xl p-8 text-center cursor-pointer transition-all group">
+                        <input type="file" id="fileInput" multiple onchange="handleFileSelect(event)" class="hidden">
+                        <i class="fa-solid fa-cloud-arrow-up text-4xl text-slate-600 group-hover:text-emerald-500 mb-3 transition-colors"></i>
+                        <p class="text-sm font-medium text-gray-200">Drag & drop files here or <span class="text-emerald-400 hover:underline">Browse</span></p>
+                        <p class="text-xs text-gray-500 mt-1">Supports Videos (4K/1080p), Documents, Photos, Archives up to system limit</p>
+                    </div>
+
+                    <!-- Target Folder Selector -->
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Destination Directory</label>
+                        <select id="uploadFolderSelect" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:border-emerald-500">
+                            <option value="root">/ (Root Vault)</option>
+                        </select>
+                    </div>
+
+                    <!-- Active Upload Queue List -->
+                    <div id="uploadQueueContainer" class="space-y-3 max-h-48 overflow-y-auto custom-scrollbar hidden">
+                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Active Stream Queue</p>
+                        <div id="uploadQueueList" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-3 bg-slate-950 border-t border-slate-800 flex justify-between items-center">
+                    <span class="text-xs text-gray-500 font-mono">Zero-Compression Preserved</span>
+                    <button onclick="closeUploadModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-gray-200 rounded-lg text-xs font-medium">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ADVANCED VIDEO PLAYER MODAL -->
+        <div id="videoModal" class="fixed inset-0 z-50 bg-black/95 flex flex-col hidden overflow-hidden">
+            <!-- Header bar -->
+            <div class="h-14 px-4 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-white z-10">
+                <div class="flex items-center space-x-3 truncate">
+                    <i class="fa-solid fa-circle-play text-emerald-500 text-lg"></i>
+                    <div>
+                        <h4 id="videoModalTitle" class="text-sm font-semibold truncate">Video Title</h4>
+                        <p id="videoModalMeta" class="text-[10px] text-gray-400 font-mono">1080p • MP4 • 0.0 MB</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="downloadActiveFile()" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors" title="Download Original">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                    <button onclick="closeVideoModal()" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Player Area -->
+            <div class="flex-1 relative flex items-center justify-center bg-black">
+                <video id="customVideoPlayer" class="w-full h-full max-h-[85vh] object-contain" controls crossorigin="anonymous">
+                    <source id="videoSource" src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+        </div>
+
+        <!-- 3. IMAGE LIGHTBOX MODAL -->
+        <div id="imageModal" class="fixed inset-0 z-50 bg-black/95 flex flex-col hidden">
+            <div class="h-14 px-4 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between text-white">
+                <span id="imageModalTitle" class="text-sm font-semibold truncate">Image Title</span>
+                <div class="flex items-center space-x-2">
+                    <button onclick="downloadActiveFile()" class="p-2 text-gray-400 hover:text-white rounded-lg"><i class="fa-solid fa-download"></i></button>
+                    <button onclick="closeImageModal()" class="p-2 text-gray-400 hover:text-white rounded-lg"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+            </div>
+            <div class="flex-1 flex items-center justify-center p-4 overflow-auto">
+                <img id="imageModalPreview" src="" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl" alt="Preview">
+            </div>
+        </div>
+
+        <!-- 4. FILE DETAILS DRAWER/MODAL -->
+        <div id="fileDetailsModal" class="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm hidden">
+            <div class="w-full max-w-md bg-slate-900 border-l border-slate-800 h-full p-6 space-y-6 overflow-y-auto custom-scrollbar">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <h3 class="font-bold text-white text-lg flex items-center space-x-2">
+                        <i class="fa-solid fa-circle-info text-emerald-500"></i>
+                        <span>File Inspector</span>
+                    </h3>
+                    <button onclick="closeFileDetailsModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+
+                <div id="fileDetailsContent" class="space-y-4 text-xs">
+                    <!-- Dynamic file metadata details -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. CREATE FOLDER MODAL -->
+        <div id="createFolderModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+            <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <h3 class="font-semibold text-white text-base">Create Secure Directory</h3>
+                <input type="text" id="folderNameInput" placeholder="Directory Name (e.g., Financial_2026)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-gray-100 focus:outline-none focus:border-emerald-500">
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeCreateFolderModal()" class="px-4 py-2 bg-slate-800 text-gray-300 text-xs font-semibold rounded-lg">Cancel</button>
+                    <button onclick="confirmCreateFolder()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg">Create Folder</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOAST NOTIFICATION CONTAINER -->
+        <div id="toastContainer" class="fixed bottom-20 md:bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    </div>
+
+    <!-- MAIN APP JAVASCRIPT LOGIC -->
+    <script>
+        /**
+         * AEGISVAULT STATE MANAGEMENT
+         * Production grade state handling in browser memory
+         */
+        const AppState = {
+            currentUser: null,
+            theme: 'dark',
+            activeView: 'dashboard',
+            currentFolderId: 'root',
+            files: [],
+            folders: [],
+            logs: [],
+            authorizedUsers: [
+                { id: 'usr-1', name: 'Security Admin', email: 'admin@aegisvault.internal', role: 'ADMIN', status: 'APPROVED', created: '2026-01-01' },
+                { id: 'usr-2', name: 'Executive Client', email: 'client@enterprise.com', role: 'USER', status: 'APPROVED', created: '2026-02-15' }
+            ],
+            storageLimitBytes: 200 * 1024 * 1024 * 1024, // 200 GB
+            activeDetailFile: null
+        };
+
+        // Pre-populated realistic initial mock vault items
+        const INITIAL_MOCK_FILES = [
+            { id: 'f-1', name: 'Q3_Security_Audit_Report.pdf', type: 'document', mimeType: 'application/pdf', size: 14200000, folderId: 'root', extension: 'PDF', resolution: 'N/A', duration: 'N/A', createdAt: '2026-10-10 14:32', deleted: false, url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
+            { id: 'f-2', name: 'Encrypted_Vault_Architecture_4K.mp4', type: 'video', mimeType: 'video/mp4', size: 1850000000, folderId: 'root', extension: 'MP4', resolution: '3840x2160 (4K)', duration: '12:45', createdAt: '2026-10-18 09:12', deleted: false, url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+            { id: 'f-3', name: 'Biometric_Access_Key.png', type: 'image', mimeType: 'image/png', size: 4500000, folderId: 'root', extension: 'PNG', resolution: '2560x1440', duration: 'N/A', createdAt: '2026-10-21 18:20', deleted: false, url: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80' },
+            { id: 'f-4', name: 'Private_Tax_Records_2025.xlsx', type: 'document', mimeType: 'application/vnd.ms-excel', size: 2100000, folderId: 'root', extension: 'XLSX', resolution: 'N/A', duration: 'N/A', createdAt: '2026-09-01 11:00', deleted: false, url: '#' },
+            { id: 'f-5', name: 'Server_Cluster_Backup.zip', type: 'other', mimeType: 'application/zip', size: 850000000, folderId: 'root', extension: 'ZIP', resolution: 'N/A', duration: 'N/A', createdAt: '2026-10-22 22:15', deleted: false, url: '#' }
+        ];
+
+        const INITIAL_MOCK_FOLDERS = [
+            { id: 'fol-1', name: 'Confidential Projects', parentId: 'root', createdAt: '2026-08-10' },
+            { id: 'fol-2', name: 'Media Vault Backup', parentId: 'root', createdAt: '2026-09-12' }
+        ];
+
+        // INITIALIZATION
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStateFromStorage();
+            checkAuthSession();
+            renderAppView();
+        });
+
+        function loadStateFromStorage() {
+            const savedFiles = localStorage.getItem('aegis_files');
+            AppState.files = savedFiles ? JSON.parse(savedFiles) : INITIAL_MOCK_FILES;
+
+            const savedFolders = localStorage.getItem('aegis_folders');
+            AppState.folders = savedFolders ? JSON.parse(savedFolders) : INITIAL_MOCK_FOLDERS;
+
+            const savedLogs = localStorage.getItem('aegis_logs');
+            AppState.logs = savedLogs ? JSON.parse(savedLogs) : [
+                { id: 'l-1', action: 'SYSTEM_INIT', details: 'AegisVault initialized successfully.', timestamp: '2026-10-23 08:00:00' }
+            ];
+        }
+
+        function saveStateToStorage() {
+            localStorage.setItem('aegis_files', JSON.stringify(AppState.files));
+            localStorage.setItem('aegis_folders', JSON.stringify(AppState.folders));
+            localStorage.setItem('aegis_logs', JSON.stringify(AppState.logs));
+            updateStorageMetrics();
+        }
+
+        function checkAuthSession() {
+            const authUser = localStorage.getItem('aegis_session_user');
+            if (authUser) {
+                AppState.currentUser = JSON.parse(authUser);
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('mainLayout').classList.remove('hidden');
+                updateUserHeader();
+            } else {
+                document.getElementById('authScreen').classList.remove('hidden');
+                document.getElementById('mainLayout').classList.add('hidden');
+            }
+        }
+
+        function logSecurityEvent(action, details) {
+            const log = {
+                id: 'log-' + Date.now(),
+                action,
+                details,
+                timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+                user: AppState.currentUser ? AppState.currentUser.email : 'ANONYMOUS'
+            };
+            AppState.logs.unshift(log);
+            saveStateToStorage();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* AUTHENTICATION & ALLOWLIST                                                 */
+        /* -------------------------------------------------------------------------- */
+        function switchAuthTab(tab) {
+            if (tab === 'login') {
+                document.getElementById('loginForm').classList.remove('hidden');
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('tabLoginBtn').className = "flex-1 pb-3 text-sm font-medium text-emerald-400 border-b-2 border-emerald-500 transition-colors";
+                document.getElementById('tabRegisterBtn').className = "flex-1 pb-3 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-300 transition-colors";
+            } else {
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('registerForm').classList.remove('hidden');
+                document.getElementById('tabRegisterBtn').className = "flex-1 pb-3 text-sm font-medium text-emerald-400 border-b-2 border-emerald-500 transition-colors";
+                document.getElementById('tabLoginBtn').className = "flex-1 pb-3 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-300 transition-colors";
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            // Authorization Allowlist verification check
+            const foundUser = AppState.authorizedUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+            if (!foundUser) {
+                showToast('Access Denied: Email identity not found in authorized allowlist.', 'error');
+                logSecurityEvent('UNAUTHORIZED_ACCESS_ATTEMPT', `Email: ${email}`);
+                return;
+            }
+
+            if (foundUser.status !== 'APPROVED') {
+                showToast('Account Pending Approval: Contact System Administrator.', 'warning');
+                return;
+            }
+
+            // Simple demo credential logic
+            if (password === 'vault123') {
+                AppState.currentUser = foundUser;
+                localStorage.setItem('aegis_session_user', JSON.stringify(foundUser));
+                logSecurityEvent('USER_LOGIN_SUCCESS', `Session opened for ${foundUser.email}`);
+                checkAuthSession();
+                renderAppView();
+                showToast(`Welcome back, ${foundUser.name}`, 'success');
+            } else {
+                showToast('Invalid Master Password.', 'error');
+                logSecurityEvent('FAILED_LOGIN', `Incorrect credentials for ${email}`);
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+
+            const newUser = {
+                id: 'usr-' + Date.now(),
+                name,
+                email,
+                role: 'USER',
+                status: 'PENDING',
+                created: new Date().toISOString().split('T')[0]
+            };
+
+            AppState.authorizedUsers.push(newUser);
+            logSecurityEvent('REGISTRATION_REQUEST', `New user request: ${email}`);
+            showToast('Request submitted. Waiting for Vault Admin allowlist approval.', 'info');
+            switchAuthTab('login');
+        }
+
+        function handleLogout() {
+            logSecurityEvent('USER_LOGOUT', `Session closed for ${AppState.currentUser?.email}`);
+            AppState.currentUser = null;
+            localStorage.removeItem('aegis_session_user');
+            checkAuthSession();
+            showToast('Logged out securely.', 'info');
+        }
+
+        function updateUserHeader() {
+            if (!AppState.currentUser) return;
+            document.getElementById('userNameHeader').innerText = AppState.currentUser.name;
+            document.getElementById('userAvatarText').innerText = AppState.currentUser.name.charAt(0).toUpperCase();
+            document.getElementById('userMenuName').innerText = AppState.currentUser.name;
+            document.getElementById('userMenuEmail').innerText = AppState.currentUser.email;
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* NAVIGATION & ROUTING                                                      */
+        /* -------------------------------------------------------------------------- */
+        function navigateTo(view, folderId = 'root') {
+            AppState.activeView = view;
+            AppState.currentFolderId = folderId;
+
+            // Update Desktop Nav styles
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'text-emerald-400', 'bg-emerald-500/10', 'border', 'border-emerald-500/20');
+                el.classList.add('text-gray-400');
+            });
+            const activeNav = document.getElementById(`nav-${view}`);
+            if (activeNav) {
+                activeNav.classList.add('active', 'text-emerald-400', 'bg-emerald-500/10', 'border', 'border-emerald-500/20');
+            }
+
+            // Update Mobile Nav styles
+            const mobBtns = ['dashboard', 'videos', 'documents', 'images', 'folders'];
+            mobBtns.forEach(b => {
+                const btn = document.getElementById(`mob-${b}`);
+                if (btn) {
+                    btn.className = b === view ? 'flex flex-col items-center justify-center w-12 h-12 text-emerald-400' : 'flex flex-col items-center justify-center w-12 h-12 text-gray-400';
+                }
+            });
+
+            renderAppView();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* VIEW RENDERERS                                                             */
+        /* -------------------------------------------------------------------------- */
+        function renderAppView() {
+            const container = document.getElementById('contentContainer');
+            if (!AppState.currentUser) return;
+
+            updateStorageMetrics();
+
+            switch (AppState.activeView) {
+                case 'dashboard':
+                    container.innerHTML = renderDashboardHTML();
+                    break;
+                case 'videos':
+                    container.innerHTML = renderMediaVaultHTML('video');
+                    break;
+                case 'documents':
+                    container.innerHTML = renderMediaVaultHTML('document');
+                    break;
+                case 'images':
+                    container.innerHTML = renderMediaVaultHTML('image');
+                    break;
+                case 'folders':
+                    container.innerHTML = renderFoldersHTML();
+                    break;
+                case 'trash':
+                    container.innerHTML = renderTrashHTML();
+                    break;
+                case 'logs':
+                    container.innerHTML = renderLogsHTML();
+                    break;
+                case 'admin':
+                    container.innerHTML = renderAdminHTML();
+                    break;
+                default:
+                    container.innerHTML = renderDashboardHTML();
+            }
+        }
+
+        /* DASHBOARD VIEW */
+        function renderDashboardHTML() {
+            const activeFiles = AppState.files.filter(f => !f.deleted);
+            const videos = activeFiles.filter(f => f.type === 'video');
+            const docs = activeFiles.filter(f => f.type === 'document');
+            const images = activeFiles.filter(f => f.type === 'image');
+            const usedBytes = activeFiles.reduce((acc, curr) => acc + curr.size, 0);
+
+            return `
+                <!-- Quick Stats Grid -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-file font-normal"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Total Objects</p>
+                            <h3 class="text-xl font-bold text-white mt-0.5">${activeFiles.length}</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-film"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">4K/HD Videos</p>
+                            <h3 class="text-xl font-bold text-white mt-0.5">${videos.length}</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-file-contract"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Documents</p>
+                            <h3 class="text-xl font-bold text-white mt-0.5">${docs.length}</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-images"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Image Gallery</p>
+                            <h3 class="text-xl font-bold text-white mt-0.5">${images.length}</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Storage Capacity Banner -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div>
+                            <h3 class="text-base font-semibold text-white flex items-center space-x-2">
+                                <i class="fa-solid fa-hard-drive text-emerald-500"></i>
+                                <span>Zero-Trust Vault Storage Allocation</span>
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Direct object-storage with encrypted streaming links</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-sm font-bold text-white font-mono">${formatBytes(usedBytes)}</span>
+                            <span class="text-xs text-gray-500">/ ${formatBytes(AppState.storageLimitBytes)}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div class="bg-gradient-to-r from-emerald-500 via-teal-400 to-blue-500 h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, (usedBytes / AppState.storageLimitBytes) * 100)}%"></div>
+                    </div>
+
+                    <!-- Breakdown pill tags -->
+                    <div class="flex flex-wrap gap-4 text-xs pt-1">
+                        <span class="flex items-center space-x-1.5 text-gray-400"><span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span> Video (${formatBytes(videos.reduce((a,b)=>a+b.size, 0))})</span>
+                        <span class="flex items-center space-x-1.5 text-gray-400"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Docs (${formatBytes(docs.reduce((a,b)=>a+b.size, 0))})</span>
+                        <span class="flex items-center space-x-1.5 text-gray-400"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Images (${formatBytes(images.reduce((a,b)=>a+b.size, 0))})</span>
+                    </div>
+                </div>
+
+                <!-- Recent Files Section -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-base font-semibold text-white">Recently Uploaded Media</h3>
+                        <button onclick="openUploadModal()" class="text-xs text-emerald-400 hover:underline flex items-center space-x-1">
+                            <i class="fa-solid fa-plus"></i><span>Add Content</span>
+                        </button>
+                    </div>
+
+                    ${activeFiles.length === 0 ? renderEmptyState('No private files stored yet.', 'Upload your first video, document or photo.') : `
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            ${activeFiles.slice(0, 6).map(file => renderFileCardHTML(file)).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        /* CATEGORIZED MEDIA VAULTS (Videos, Docs, Images) */
+        function renderMediaVaultHTML(categoryType) {
+            const activeFiles = AppState.files.filter(f => !f.deleted && (categoryType === 'all' || f.type === categoryType));
+            
+            const titles = {
+                video: 'Private Video Vault',
+                document: 'Secure Document Storage',
+                image: 'Private Image Gallery'
+            };
+
+            return `
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid ${getCategoryIcon(categoryType)} text-emerald-500"></i>
+                            <span>${titles[categoryType]}</span>
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Preserved in original resolution with custom encryption</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="openUploadModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-upload"></i>
+                            <span>Upload ${categoryType.toUpperCase()}</span>
+                        </button>
+                    </div>
+                </div>
+
+                ${activeFiles.length === 0 ? renderEmptyState(`No ${categoryType}s found in vault`, `Upload ${categoryType} files without size or quality limits.`) : `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        ${activeFiles.map(file => renderFileCardHTML(file)).join('')}
+                    </div>
+                `}
+            `;
+        }
+
+        /* FOLDER DIRECTORY VIEW */
+        function renderFoldersHTML() {
+            const currentFolder = AppState.folders.find(f => f.id === AppState.currentFolderId);
+            const subFolders = AppState.folders.filter(f => f.parentId === AppState.currentFolderId);
+            const folderFiles = AppState.files.filter(f => !f.deleted && f.folderId === AppState.currentFolderId);
+
+            return `
+                <div class="space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                        <div>
+                            <!-- Breadcrumb -->
+                            <div class="flex items-center space-x-2 text-xs font-mono text-gray-400 mb-1">
+                                <a href="#" onclick="navigateTo('folders', 'root')" class="hover:text-emerald-400">root</a>
+                                ${currentFolder ? `<span>/</span><span class="text-emerald-400 font-semibold">${currentFolder.name}</span>` : ''}
+                            </div>
+                            <h2 class="text-xl font-bold text-white">Directory Structure</h2>
+                        </div>
+                        <button onclick="openCreateFolderModal()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-700 transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-folder-plus text-emerald-400"></i>
+                            <span>New Folder</span>
+                        </button>
+                    </div>
+
+                    <!-- Subfolders Grid -->
+                    ${subFolders.length > 0 ? `
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            ${subFolders.map(fol => `
+                                <div onclick="navigateTo('folders', '${fol.id}')" class="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-3 cursor-pointer transition-all flex items-center justify-between group">
+                                    <div class="flex items-center space-x-3 truncate">
+                                        <i class="fa-solid fa-folder text-amber-400 text-xl group-hover:scale-110 transition-transform"></i>
+                                        <span class="text-xs font-medium text-gray-200 truncate">${fol.name}</span>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    <!-- Files in Folder -->
+                    <div class="pt-4">
+                        <h4 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Stored Media Objects (${folderFiles.length})</h4>
+                        ${folderFiles.length === 0 ? renderEmptyState('This folder is empty', 'Drag files or upload content into this folder.') : `
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                ${folderFiles.map(file => renderFileCardHTML(file)).join('')}
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        /* RECYCLE BIN / TRASH VIEW */
+        function renderTrashHTML() {
+            const trashFiles = AppState.files.filter(f => f.deleted);
+
+            return `
+                <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-trash-can text-rose-500"></i>
+                            <span>Recycle Bin</span>
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Items purges automatically after 30 days retention</p>
+                    </div>
+                    ${trashFiles.length > 0 ? `
+                        <button onclick="emptyTrashConfirm()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-semibold px-3 py-2 rounded-xl transition-all">
+                            Empty Trash
+                        </button>
+                    ` : ''}
+                </div>
+
+                ${trashFiles.length === 0 ? renderEmptyState('Recycle Bin is empty', 'No soft-deleted files currently exist.') : `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${trashFiles.map(file => `
+                            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 opacity-75">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fa-solid fa-file text-slate-500 text-2xl"></i>
+                                    <div class="truncate">
+                                        <p class="text-xs font-semibold text-gray-200 truncate">${file.name}</p>
+                                        <p class="text-[10px] text-gray-500 font-mono">${formatBytes(file.size)}</p>
+                                    </div>
+                                </div>
+                                <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800/60">
+                                    <button onclick="restoreFile('${file.id}')" class="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs rounded border border-emerald-500/20">Restore</button>
+                                    <button onclick="permanentlyDeleteFile('${file.id}')" class="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs rounded border border-rose-500/20">Destroy</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `}
+            `;
+        }
+
+        /* AUDIT & SECURITY LOGS VIEW */
+        function renderLogsHTML() {
+            return `
+                <div class="space-y-4">
+                    <div class="border-b border-slate-800 pb-4">
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-shield-virus text-emerald-500"></i>
+                            <span>Security & Operations Audit Trail</span>
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Real-time immutable activity log for compliance and session tracking</p>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-gray-400 font-mono uppercase tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3.5">Timestamp</th>
+                                        <th class="p-3.5">User</th>
+                                        <th class="p-3.5">Security Event</th>
+                                        <th class="p-3.5">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60 text-gray-300 font-mono">
+                                    ${AppState.logs.map(log => `
+                                        <tr class="hover:bg-slate-800/40">
+                                            <td class="p-3.5 text-gray-500 whitespace-nowrap">${log.timestamp}</td>
+                                            <td class="p-3.5 text-emerald-400">${log.user}</td>
+                                            <td class="p-3.5 font-bold">${log.action}</td>
+                                            <td class="p-3.5 text-gray-400">${log.details}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /* ADMIN CENTER VIEW */
+        function renderAdminHTML() {
+            if (AppState.currentUser?.role !== 'ADMIN') {
+                return renderEmptyState('Access Restricted', 'Only Vault Administrators can access the Allowlist Management console.');
+            }
+
+            return `
+                <div class="space-y-6">
+                    <div class="border-b border-slate-800 pb-4">
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-user-shield text-emerald-500"></i>
+                            <span>System Admin & Authorized Access</span>
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Manage user access control, allowlist requests, and storage quotas</p>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Authorized User Allowlist</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950 text-gray-400 font-mono border-b border-slate-800">
+                                    <tr>
+                                        <th class="p-3">Identity Name</th>
+                                        <th class="p-3">Email</th>
+                                        <th class="p-3">Role</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/60">
+                                    ${AppState.authorizedUsers.map(usr => `
+                                        <tr>
+                                            <td class="p-3 font-semibold text-white">${usr.name}</td>
+                                            <td class="p-3 text-gray-400 font-mono">${usr.email}</td>
+                                            <td class="p-3"><span class="px-2 py-0.5 rounded bg-slate-800 text-gray-300 font-mono text-[10px]">${usr.role}</span></td>
+                                            <td class="p-3">
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${usr.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">
+                                                    ${usr.status}
+                                                </span>
+                                            </td>
+                                            <td class="p-3 text-right space-x-2">
+                                                ${usr.status === 'PENDING' ? `
+                                                    <button onclick="approveUser('${usr.id}')" class="px-2.5 py-1 bg-emerald-600 text-white rounded font-medium hover:bg-emerald-500">Approve</button>
+                                                ` : ''}
+                                                ${usr.id !== AppState.currentUser.id ? `
+                                                    <button onclick="revokeUser('${usr.id}')" class="px-2.5 py-1 bg-rose-600/20 text-rose-400 hover:bg-rose-600 hover:text-white rounded">Revoke</button>
+                                                ` : ''}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /* REUSABLE FILE CARD COMPONENT */
+        function renderFileCardHTML(file) {
+            return `
+                <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 flex flex-col justify-between space-y-3 transition-all hover:shadow-xl group">
+                    <div class="flex items-start justify-between space-x-2">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <div class="w-10 h-10 rounded-xl ${getFileBgClass(file.type)} flex items-center justify-center flex-shrink-0 text-base">
+                                <i class="fa-solid ${getFileIcon(file.type)}"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-semibold text-gray-200 truncate group-hover:text-emerald-400 transition-colors" title="${file.name}">${file.name}</h4>
+                                <p class="text-[10px] text-gray-500 font-mono mt-0.5">${formatBytes(file.size)} • ${file.extension}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File Details / Resolution Badge -->
+                    <div class="flex items-center justify-between text-[10px] text-gray-400 pt-2 border-t border-slate-800/60">
+                        <span class="font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">${file.resolution || 'Original'}</span>
+                        <span>${file.createdAt.split(' ')[0]}</span>
+                    </div>
+
+                    <!-- Actions Row -->
+                    <div class="flex items-center justify-between pt-1">
+                        <button onclick="openFilePreview('${file.id}')" class="text-xs font-medium text-emerald-400 hover:text-emerald-300 flex items-center space-x-1">
+                            <i class="fa-solid fa-eye"></i>
+                            <span>View</span>
+                        </button>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="inspectFile('${file.id}')" class="text-gray-500 hover:text-gray-300 text-xs p-1" title="Inspector">
+                                <i class="fa-solid fa-info-circle"></i>
+                            </button>
+                            <button onclick="softDeleteFile('${file.id}')" class="text-gray-500 hover:text-rose-400 text-xs p-1" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderEmptyState(title, subtitle) {
+            return `
+                <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center space-y-3">
+                    <div class="w-16 h-16 rounded-2xl bg-slate-800 text-slate-500 flex items-center justify-center mx-auto text-2xl">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <h4 class="text-sm font-semibold text-gray-300">${title}</h4>
+                    <p class="text-xs text-gray-500 max-w-sm mx-auto">${subtitle}</p>
+                </div>
+            `;
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* FILE ACTIONS & MEDIA PREVIEWERS                                           */
+        /* -------------------------------------------------------------------------- */
+        function openFilePreview(fileId) {
+            const file = AppState.files.find(f => f.id === fileId);
+            if (!file) return;
+
+            logSecurityEvent('FILE_ACCESS', `Opened preview for file: ${file.name}`);
+
+            if (file.type === 'video') {
+                document.getElementById('videoModalTitle').innerText = file.name;
+                document.getElementById('videoModalMeta').innerText = `${file.resolution} • ${file.extension} • ${formatBytes(file.size)}`;
+                const videoPlayer = document.getElementById('customVideoPlayer');
+                document.getElementById('videoSource').src = file.url;
+                videoPlayer.load();
+                document.getElementById('videoModal').classList.remove('hidden');
+            } else if (file.type === 'image') {
+                document.getElementById('imageModalTitle').innerText = file.name;
+                document.getElementById('imageModalPreview').src = file.url;
+                document.getElementById('imageModal').classList.remove('hidden');
+            } else {
+                inspectFile(fileId);
+                showToast('Document metadata loaded into Inspector.', 'info');
+            }
+        }
+
+        function closeVideoModal() {
+            const videoPlayer = document.getElementById('customVideoPlayer');
+            videoPlayer.pause();
+            document.getElementById('videoModal').classList.add('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+        }
+
+        function inspectFile(fileId) {
+            const file = AppState.files.find(f => f.id === fileId);
+            if (!file) return;
+
+            AppState.activeDetailFile = file;
+
+            const container = document.getElementById('fileDetailsContent');
+            container.innerHTML = `
+                <div class="space-y-3">
+                    <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-center">
+                        <i class="fa-solid ${getFileIcon(file.type)} text-4xl text-emerald-500 mb-2"></i>
+                        <p class="font-semibold text-gray-200 text-sm break-all">${file.name}</p>
+                        <p class="text-[10px] text-gray-500 font-mono mt-1">${file.mimeType}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between py-1.5 border-b border-slate-800">
+                            <span class="text-gray-400">File Size:</span>
+                            <span class="text-gray-200 font-mono">${formatBytes(file.size)}</span>
+                        </div>
+                        <div class="flex justify-between py-1.5 border-b border-slate-800">
+                            <span class="text-gray-400">Resolution:</span>
+                            <span class="text-gray-200 font-mono">${file.resolution}</span>
+                        </div>
+                        <div class="flex justify-between py-1.5 border-b border-slate-800">
+                            <span class="text-gray-400">Duration:</span>
+                            <span class="text-gray-200 font-mono">${file.duration}</span>
+                        </div>
+                        <div class="flex justify-between py-1.5 border-b border-slate-800">
+                            <span class="text-gray-400">Upload Date:</span>
+                            <span class="text-gray-200 font-mono">${file.createdAt}</span>
+                        </div>
+                        <div class="flex justify-between py-1.5 border-b border-slate-800">
+                            <span class="text-gray-400">Storage Node:</span>
+                            <span class="text-emerald-400 font-mono">AWS_S3_US_EAST_PRIVATE</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 space-y-2">
+                        <button onclick="downloadActiveFile()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-lg text-xs flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-download"></i>
+                            <span>Secure Download</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('fileDetailsModal').classList.remove('hidden');
+        }
+
+        function closeFileDetailsModal() {
+            document.getElementById('fileDetailsModal').classList.add('hidden');
+        }
+
+        function downloadActiveFile() {
+            showToast('Initiating encrypted file stream download...', 'info');
+        }
+
+        function softDeleteFile(fileId) {
+            const file = AppState.files.find(f => f.id === fileId);
+            if (file) {
+                file.deleted = true;
+                saveStateToStorage();
+                logSecurityEvent('FILE_DELETE_TRASH', `Moved ${file.name} to recycle bin.`);
+                renderAppView();
+                showToast('Item moved to Recycle Bin', 'warning');
+            }
+        }
+
+        function restoreFile(fileId) {
+            const file = AppState.files.find(f => f.id === fileId);
+            if (file) {
+                file.deleted = false;
+                saveStateToStorage();
+                logSecurityEvent('FILE_RESTORE', `Restored file ${file.name}`);
+                renderAppView();
+                showToast('File restored to vault', 'success');
+            }
+        }
+
+        function permanentlyDeleteFile(fileId) {
+            AppState.files = AppState.files.filter(f => f.id !== fileId);
+            saveStateToStorage();
+            logSecurityEvent('FILE_PERMANENT_DESTROY', `Permanently destroyed file ID: ${fileId}`);
+            renderAppView();
+            showToast('File permanently purged', 'error');
+        }
+
+        function emptyTrashConfirm() {
+            AppState.files = AppState.files.filter(f => !f.deleted);
+            saveStateToStorage();
+            logSecurityEvent('TRASH_EMPTY', 'Cleared all soft-deleted trash items.');
+            renderAppView();
+            showToast('Recycle bin emptied', 'info');
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* DIRECT-TO-STORAGE RESUMABLE UPLOAD SIMULATION                              */
+        /* -------------------------------------------------------------------------- */
+        function openUploadModal() {
+            const select = document.getElementById('uploadFolderSelect');
+            select.innerHTML = `<option value="root">/ (Root Vault)</option>` + 
+                AppState.folders.map(fol => `<option value="${fol.id}">/ ${fol.name}</option>`).join('');
+            document.getElementById('uploadModal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+        }
+
+        function handleDragOver(e) { e.preventDefault(); }
+        function handleDragLeave(e) { e.preventDefault(); }
+        function handleDrop(e) {
+            e.preventDefault();
+            if (e.dataTransfer.files) {
+                processUploadedFiles(e.dataTransfer.files);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files) {
+                processUploadedFiles(e.target.files);
+            }
+        }
+
+        function processUploadedFiles(fileList) {
+            const container = document.getElementById('uploadQueueContainer');
+            const list = document.getElementById('uploadQueueList');
+            container.classList.remove('hidden');
+
+            Array.from(fileList).forEach(file => {
+                const uploadId = 'up-' + Date.now() + Math.random().toString(36).substr(2, 4);
+                
+                // Add item UI
+                const itemEl = document.createElement('div');
+                itemEl.className = "bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1.5";
+                itemEl.id = uploadId;
+                itemEl.innerHTML = `
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-semibold text-gray-200 truncate max-w-[200px]">${file.name}</span>
+                        <span class="upload-status text-emerald-400 font-mono">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                        <div class="upload-bar bg-emerald-500 h-full w-0 transition-all duration-200"></div>
+                    </div>
+                `;
+                list.appendChild(itemEl);
+
+                // Simulate progress chunks
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.floor(Math.random() * 25) + 10;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        itemEl.querySelector('.upload-status').innerText = 'Completed';
+                        itemEl.querySelector('.upload-status').className = 'text-emerald-400 font-mono font-bold';
+                        
+                        // Commit file metadata to vault
+                        commitUploadedFile(file);
+                    } else {
+                        itemEl.querySelector('.upload-status').innerText = `${progress}%`;
+                        itemEl.querySelector('.upload-bar').style.width = `${progress}%`;
+                    }
+                }, 300);
+            });
+        }
+
+        function commitUploadedFile(file) {
+            const folderId = document.getElementById('uploadFolderSelect').value;
+            const ext = file.name.split('.').pop().toUpperCase();
+            
+            let fileType = 'other';
+            if (['MP4', 'WEBM', 'MOV', 'MKV', 'AVI'].includes(ext)) fileType = 'video';
+            else if (['PNG', 'JPG', 'JPEG', 'GIF', 'WEBP'].includes(ext)) fileType = 'image';
+            else if (['PDF', 'DOC', 'DOCX', 'XLSX', 'TXT'].includes(ext)) fileType = 'document';
+
+            const newFile = {
+                id: 'f-' + Date.now() + Math.random().toString(36).substr(2, 4),
+                name: file.name,
+                type: fileType,
+                mimeType: file.type || 'application/octet-stream',
+                size: file.size,
+                folderId: folderId,
+                extension: ext,
+                resolution: fileType === 'video' ? '3840x2160 (4K Preserved)' : 'Original',
+                duration: fileType === 'video' ? '05:30' : 'N/A',
+                createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                deleted: false,
+                url: fileType === 'image' ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80' : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+            };
+
+            AppState.files.unshift(newFile);
+            saveStateToStorage();
+            logSecurityEvent('FILE_UPLOAD', `Uploaded ${file.name} (${formatBytes(file.size)})`);
+            renderAppView();
+            showToast(`Uploaded: ${file.name}`, 'success');
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* FOLDER CREATION                                                           */
+        /* -------------------------------------------------------------------------- */
+        function openCreateFolderModal() {
+            document.getElementById('createFolderModal').classList.remove('hidden');
+        }
+
+        function closeCreateFolderModal() {
+            document.getElementById('createFolderModal').classList.add('hidden');
+        }
+
+        function confirmCreateFolder() {
+            const name = document.getElementById('folderNameInput').value.trim();
+            if (!name) return;
+
+            const newFol = {
+                id: 'fol-' + Date.now(),
+                name,
+                parentId: AppState.currentFolderId,
+                createdAt: new Date().toISOString().split('T')[0]
+            };
+
+            AppState.folders.push(newFol);
+            saveStateToStorage();
+            logSecurityEvent('FOLDER_CREATE', `Created folder: ${name}`);
+            closeCreateFolderModal();
+            renderAppView();
+            showToast('Directory created', 'success');
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* GLOBAL SEARCH                                                             */
+        /* -------------------------------------------------------------------------- */
+        function handleGlobalSearch(e) {
+            const query = e.target.value.toLowerCase().trim();
+            if (!query) {
+                renderAppView();
+                return;
+            }
+
+            const matchingFiles = AppState.files.filter(f => !f.deleted && (
+                f.name.toLowerCase().includes(query) ||
+                f.extension.toLowerCase().includes(query) ||
+                f.type.toLowerCase().includes(query)
+            ));
+
+            const container = document.getElementById('contentContainer');
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <h3 class="text-lg font-bold text-white">Search Results for: <span class="text-emerald-400">"${query}"</span></h3>
+                    ${matchingFiles.length === 0 ? renderEmptyState('No matching results', 'Try searching for another filename or extension.') : `
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            ${matchingFiles.map(file => renderFileCardHTML(file)).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* UTILITIES & HELPERS                                                       */
+        /* -------------------------------------------------------------------------- */
+        function updateStorageMetrics() {
+            const activeFiles = AppState.files.filter(f => !f.deleted);
+            const usedBytes = activeFiles.reduce((acc, curr) => acc + curr.size, 0);
+            
+            const sidebarText = document.getElementById('sidebarStorageText');
+            const sidebarBar = document.getElementById('sidebarStorageBar');
+            if (sidebarText && sidebarBar) {
+                sidebarText.innerText = `${formatBytes(usedBytes)} / 200 GB`;
+                sidebarBar.style.width = `${Math.min(100, (usedBytes / AppState.storageLimitBytes) * 100)}%`;
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function getFileIcon(type) {
+            switch(type) {
+                case 'video': return 'fa-film';
+                case 'image': return 'fa-image';
+                case 'document': return 'fa-file-lines';
+                default: return 'fa-box-archive';
+            }
+        }
+
+        function getCategoryIcon(type) {
+            switch(type) {
+                case 'video': return 'fa-film';
+                case 'image': return 'fa-images';
+                case 'document': return 'fa-file-contract';
+                default: return 'fa-box';
+            }
+        }
+
+        function getFileBgClass(type) {
+            switch(type) {
+                case 'video': return 'bg-purple-500/10 text-purple-400';
+                case 'image': return 'bg-amber-500/10 text-amber-400';
+                case 'document': return 'bg-emerald-500/10 text-emerald-400';
+                default: return 'bg-blue-500/10 text-blue-400';
+            }
+        }
+
+        function toggleUserMenu() {
+            document.getElementById('userMenuDropdown').classList.toggle('hidden');
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const icon = document.getElementById('themeIcon');
+            if (document.documentElement.classList.contains('dark')) {
+                icon.className = "fa-solid fa-moon";
+            } else {
+                icon.className = "fa-solid fa-sun";
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const bgClasses = {
+                success: 'bg-emerald-950 border-emerald-800 text-emerald-300',
+                error: 'bg-rose-950 border-rose-800 text-rose-300',
+                warning: 'bg-amber-950 border-amber-800 text-amber-300',
+                info: 'bg-slate-900 border-slate-800 text-gray-200'
+            };
+
+            toast.className = `p-3.5 rounded-xl border shadow-xl text-xs font-medium flex items-center space-x-2 pointer-events-auto transition-all transform duration-300 ${bgClasses[type]}`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function approveUser(userId) {
+            const usr = AppState.authorizedUsers.find(u => u.id === userId);
+            if (usr) {
+                usr.status = 'APPROVED';
+                logSecurityEvent('USER_ALLOWLIST_APPROVE', `Approved allowlist access for ${usr.email}`);
+                renderAppView();
+                showToast('User authorized for vault access', 'success');
+            }
+        }
+
+        function revokeUser(userId) {
+            AppState.authorizedUsers = AppState.authorizedUsers.filter(u => u.id !== userId);
+            logSecurityEvent('USER_ALLOWLIST_REVOKE', `Revoked access for user ID: ${userId}`);
+            renderAppView();
+            showToast('User authorization revoked', 'warning');
+        }
+    </script>
+</body>
+</html>
