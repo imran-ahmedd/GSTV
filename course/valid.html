@@ -442,11 +442,137 @@
 
     </div>
 
+    <!-- FIREBASE INITIALIZATION & STATE INTEGRATION -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, onSnapshot, setDoc, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'aegis-vault-default';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-api-key",
+            authDomain: "demo-app.firebaseapp.com",
+            projectId: "demo-app",
+            storageBucket: "demo-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:123456"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Dynamic Firebase Sync Object
+        window.VaultDB = {
+            db,
+            auth,
+            appId,
+            async addFile(fileData) {
+                if (!auth.currentUser) return;
+                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'files');
+                await addDoc(ref, fileData);
+            },
+            async updateFile(fileId, updateData) {
+                if (!auth.currentUser) return;
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'files', fileId);
+                await updateDoc(ref, updateData);
+            },
+            async deleteFile(fileId) {
+                if (!auth.currentUser) return;
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'files', fileId);
+                await deleteDoc(ref);
+            },
+            async addFolder(folderData) {
+                if (!auth.currentUser) return;
+                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'folders');
+                await addDoc(ref, folderData);
+            },
+            async addLog(logData) {
+                if (!auth.currentUser) return;
+                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
+                await addDoc(ref, logData);
+            },
+            async addUser(userData) {
+                if (!auth.currentUser) return;
+                const ref = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+                await addDoc(ref, userData);
+            },
+            async updateUser(docId, updateData) {
+                if (!auth.currentUser) return;
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'users', docId);
+                await updateDoc(ref, updateData);
+            }
+        };
+
+        // Authenticate & Listen to Firestore Realtime Updates
+        async function initRealtimeSync() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                if (!auth.currentUser) return;
+
+                // Sync Files Collection
+                const filesRef = collection(db, 'artifacts', appId, 'public', 'data', 'files');
+                onSnapshot(filesRef, (snapshot) => {
+                    if (!snapshot.empty) {
+                        AppState.files = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    } else {
+                        // Seed initial defaults if empty
+                        INITIAL_MOCK_FILES.forEach(f => VaultDB.addFile(f));
+                    }
+                    renderAppView();
+                }, (err) => console.error("Firestore Files Error:", err));
+
+                // Sync Folders Collection
+                const foldersRef = collection(db, 'artifacts', appId, 'public', 'data', 'folders');
+                onSnapshot(foldersRef, (snapshot) => {
+                    if (!snapshot.empty) {
+                        AppState.folders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    } else {
+                        INITIAL_MOCK_FOLDERS.forEach(f => VaultDB.addFolder(f));
+                    }
+                    renderAppView();
+                }, (err) => console.error("Firestore Folders Error:", err));
+
+                // Sync Logs Collection
+                const logsRef = collection(db, 'artifacts', appId, 'public', 'data', 'logs');
+                onSnapshot(logsRef, (snapshot) => {
+                    if (!snapshot.empty) {
+                        AppState.logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => b.timestamp.localeCompare(a.timestamp));
+                    }
+                    renderAppView();
+                }, (err) => console.error("Firestore Logs Error:", err));
+
+                // Sync Users Collection
+                const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+                onSnapshot(usersRef, (snapshot) => {
+                    if (!snapshot.empty) {
+                        AppState.authorizedUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    } else {
+                        AppState.authorizedUsers.forEach(u => VaultDB.addUser(u));
+                    }
+                    renderAppView();
+                }, (err) => console.error("Firestore Users Error:", err));
+
+            } catch (err) {
+                console.error("Firebase Authentication Error:", err);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initRealtimeSync();
+        });
+    </script>
+
     <!-- MAIN APP JAVASCRIPT LOGIC -->
     <script>
         /**
          * AEGISVAULT STATE MANAGEMENT
-         * Production grade state handling in browser memory
          */
         const AppState = {
             currentUser: null,
@@ -457,8 +583,8 @@
             folders: [],
             logs: [],
             authorizedUsers: [
-                { id: 'usr-1', name: 'Security Admin', email: 'admin@aegisvault.internal', role: 'ADMIN', status: 'APPROVED', created: '2026-01-01' },
-                { id: 'usr-2', name: 'Executive Client', email: 'client@enterprise.com', role: 'USER', status: 'APPROVED', created: '2026-02-15' }
+                { name: 'Security Admin', email: 'admin@aegisvault.internal', role: 'ADMIN', status: 'APPROVED', created: '2026-01-01' },
+                { name: 'Executive Client', email: 'client@enterprise.com', role: 'USER', status: 'APPROVED', created: '2026-02-15' }
             ],
             storageLimitBytes: 200 * 1024 * 1024 * 1024, // 200 GB
             activeDetailFile: null
@@ -466,42 +592,23 @@
 
         // Pre-populated realistic initial mock vault items
         const INITIAL_MOCK_FILES = [
-            { id: 'f-1', name: 'Q3_Security_Audit_Report.pdf', type: 'document', mimeType: 'application/pdf', size: 14200000, folderId: 'root', extension: 'PDF', resolution: 'N/A', duration: 'N/A', createdAt: '2026-10-10 14:32', deleted: false, url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
-            { id: 'f-2', name: 'Encrypted_Vault_Architecture_4K.mp4', type: 'video', mimeType: 'video/mp4', size: 1850000000, folderId: 'root', extension: 'MP4', resolution: '3840x2160 (4K)', duration: '12:45', createdAt: '2026-10-18 09:12', deleted: false, url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
-            { id: 'f-3', name: 'Biometric_Access_Key.png', type: 'image', mimeType: 'image/png', size: 4500000, folderId: 'root', extension: 'PNG', resolution: '2560x1440', duration: 'N/A', createdAt: '2026-10-21 18:20', deleted: false, url: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80' },
-            { id: 'f-4', name: 'Private_Tax_Records_2025.xlsx', type: 'document', mimeType: 'application/vnd.ms-excel', size: 2100000, folderId: 'root', extension: 'XLSX', resolution: 'N/A', duration: 'N/A', createdAt: '2026-09-01 11:00', deleted: false, url: '#' },
-            { id: 'f-5', name: 'Server_Cluster_Backup.zip', type: 'other', mimeType: 'application/zip', size: 850000000, folderId: 'root', extension: 'ZIP', resolution: 'N/A', duration: 'N/A', createdAt: '2026-10-22 22:15', deleted: false, url: '#' }
+            { name: 'Q3_Security_Audit_Report.pdf', type: 'document', mimeType: 'application/pdf', size: 14200000, folderId: 'root', extension: 'PDF', resolution: 'N/A', duration: 'N/A', createdAt: '2026-10-10 14:32', deleted: false, url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' },
+            { name: 'Encrypted_Vault_Architecture_4K.mp4', type: 'video', mimeType: 'video/mp4', size: 1850000000, folderId: 'root', extension: 'MP4', resolution: '3840x2160 (4K)', duration: '12:45', createdAt: '2026-10-18 09:12', deleted: false, url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+            { name: 'Biometric_Access_Key.png', type: 'image', mimeType: 'image/png', size: 4500000, folderId: 'root', extension: 'PNG', resolution: '2560x1440', duration: 'N/A', createdAt: '2026-10-21 18:20', deleted: false, url: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80' }
         ];
 
         const INITIAL_MOCK_FOLDERS = [
-            { id: 'fol-1', name: 'Confidential Projects', parentId: 'root', createdAt: '2026-08-10' },
-            { id: 'fol-2', name: 'Media Vault Backup', parentId: 'root', createdAt: '2026-09-12' }
+            { name: 'Confidential Projects', parentId: 'root', createdAt: '2026-08-10' },
+            { name: 'Media Vault Backup', parentId: 'root', createdAt: '2026-09-12' }
         ];
 
         // INITIALIZATION
         window.addEventListener('DOMContentLoaded', () => {
-            loadStateFromStorage();
             checkAuthSession();
             renderAppView();
         });
 
-        function loadStateFromStorage() {
-            const savedFiles = localStorage.getItem('aegis_files');
-            AppState.files = savedFiles ? JSON.parse(savedFiles) : INITIAL_MOCK_FILES;
-
-            const savedFolders = localStorage.getItem('aegis_folders');
-            AppState.folders = savedFolders ? JSON.parse(savedFolders) : INITIAL_MOCK_FOLDERS;
-
-            const savedLogs = localStorage.getItem('aegis_logs');
-            AppState.logs = savedLogs ? JSON.parse(savedLogs) : [
-                { id: 'l-1', action: 'SYSTEM_INIT', details: 'AegisVault initialized successfully.', timestamp: '2026-10-23 08:00:00' }
-            ];
-        }
-
         function saveStateToStorage() {
-            localStorage.setItem('aegis_files', JSON.stringify(AppState.files));
-            localStorage.setItem('aegis_folders', JSON.stringify(AppState.folders));
-            localStorage.setItem('aegis_logs', JSON.stringify(AppState.logs));
             updateStorageMetrics();
         }
 
@@ -520,14 +627,12 @@
 
         function logSecurityEvent(action, details) {
             const log = {
-                id: 'log-' + Date.now(),
                 action,
                 details,
                 timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
                 user: AppState.currentUser ? AppState.currentUser.email : 'ANONYMOUS'
             };
-            AppState.logs.unshift(log);
-            saveStateToStorage();
+            if (window.VaultDB) window.VaultDB.addLog(log);
         }
 
         /* -------------------------------------------------------------------------- */
@@ -586,7 +691,6 @@
             const email = document.getElementById('regEmail').value.trim();
 
             const newUser = {
-                id: 'usr-' + Date.now(),
                 name,
                 email,
                 role: 'USER',
@@ -594,7 +698,7 @@
                 created: new Date().toISOString().split('T')[0]
             };
 
-            AppState.authorizedUsers.push(newUser);
+            if (window.VaultDB) window.VaultDB.addUser(newUser);
             logSecurityEvent('REGISTRATION_REQUEST', `New user request: ${email}`);
             showToast('Request submitted. Waiting for Vault Admin allowlist approval.', 'info');
             switchAuthTab('login');
@@ -1158,39 +1262,36 @@
 
         function softDeleteFile(fileId) {
             const file = AppState.files.find(f => f.id === fileId);
-            if (file) {
-                file.deleted = true;
-                saveStateToStorage();
+            if (file && window.VaultDB) {
+                window.VaultDB.updateFile(fileId, { deleted: true });
                 logSecurityEvent('FILE_DELETE_TRASH', `Moved ${file.name} to recycle bin.`);
-                renderAppView();
                 showToast('Item moved to Recycle Bin', 'warning');
             }
         }
 
         function restoreFile(fileId) {
             const file = AppState.files.find(f => f.id === fileId);
-            if (file) {
-                file.deleted = false;
-                saveStateToStorage();
+            if (file && window.VaultDB) {
+                window.VaultDB.updateFile(fileId, { deleted: false });
                 logSecurityEvent('FILE_RESTORE', `Restored file ${file.name}`);
-                renderAppView();
                 showToast('File restored to vault', 'success');
             }
         }
 
         function permanentlyDeleteFile(fileId) {
-            AppState.files = AppState.files.filter(f => f.id !== fileId);
-            saveStateToStorage();
-            logSecurityEvent('FILE_PERMANENT_DESTROY', `Permanently destroyed file ID: ${fileId}`);
-            renderAppView();
-            showToast('File permanently purged', 'error');
+            if (window.VaultDB) {
+                window.VaultDB.deleteFile(fileId);
+                logSecurityEvent('FILE_PERMANENT_DESTROY', `Permanently destroyed file ID: ${fileId}`);
+                showToast('File permanently purged', 'error');
+            }
         }
 
         function emptyTrashConfirm() {
-            AppState.files = AppState.files.filter(f => !f.deleted);
-            saveStateToStorage();
+            const trashFiles = AppState.files.filter(f => f.deleted);
+            trashFiles.forEach(f => {
+                if (window.VaultDB) window.VaultDB.deleteFile(f.id);
+            });
             logSecurityEvent('TRASH_EMPTY', 'Cleared all soft-deleted trash items.');
-            renderAppView();
             showToast('Recycle bin emptied', 'info');
         }
 
@@ -1276,7 +1377,6 @@
             else if (['PDF', 'DOC', 'DOCX', 'XLSX', 'TXT'].includes(ext)) fileType = 'document';
 
             const newFile = {
-                id: 'f-' + Date.now() + Math.random().toString(36).substr(2, 4),
                 name: file.name,
                 type: fileType,
                 mimeType: file.type || 'application/octet-stream',
@@ -1290,10 +1390,8 @@
                 url: fileType === 'image' ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80' : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
             };
 
-            AppState.files.unshift(newFile);
-            saveStateToStorage();
+            if (window.VaultDB) window.VaultDB.addFile(newFile);
             logSecurityEvent('FILE_UPLOAD', `Uploaded ${file.name} (${formatBytes(file.size)})`);
-            renderAppView();
             showToast(`Uploaded: ${file.name}`, 'success');
         }
 
@@ -1313,17 +1411,14 @@
             if (!name) return;
 
             const newFol = {
-                id: 'fol-' + Date.now(),
                 name,
                 parentId: AppState.currentFolderId,
                 createdAt: new Date().toISOString().split('T')[0]
             };
 
-            AppState.folders.push(newFol);
-            saveStateToStorage();
+            if (window.VaultDB) window.VaultDB.addFolder(newFol);
             logSecurityEvent('FOLDER_CREATE', `Created folder: ${name}`);
             closeCreateFolderModal();
-            renderAppView();
             showToast('Directory created', 'success');
         }
 
@@ -1443,19 +1538,21 @@
 
         function approveUser(userId) {
             const usr = AppState.authorizedUsers.find(u => u.id === userId);
-            if (usr) {
-                usr.status = 'APPROVED';
+            if (usr && window.VaultDB) {
+                window.VaultDB.updateUser(userId, { status: 'APPROVED' });
                 logSecurityEvent('USER_ALLOWLIST_APPROVE', `Approved allowlist access for ${usr.email}`);
-                renderAppView();
                 showToast('User authorized for vault access', 'success');
             }
         }
 
         function revokeUser(userId) {
-            AppState.authorizedUsers = AppState.authorizedUsers.filter(u => u.id !== userId);
-            logSecurityEvent('USER_ALLOWLIST_REVOKE', `Revoked access for user ID: ${userId}`);
-            renderAppView();
-            showToast('User authorization revoked', 'warning');
+            if (window.VaultDB) {
+                const usr = AppState.authorizedUsers.find(u => u.id === userId);
+                const docId = usr?.id;
+                if (docId) window.VaultDB.updateUser(docId, { status: 'REVOKED' });
+                logSecurityEvent('USER_ALLOWLIST_REVOKE', `Revoked access for user ID: ${userId}`);
+                showToast('User authorization revoked', 'warning');
+            }
         }
     </script>
 </body>
